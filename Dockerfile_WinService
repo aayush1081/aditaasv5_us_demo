@@ -1,0 +1,39 @@
+#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
+#https://www.youtube.com/watch?v=6QiR0O5Irzs
+
+#FROM mcr.microsoft.com/dotnet/runtime:5.0 AS base
+#FROM mcr.microsoft.com/dotnet/core/aspnet:5.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
+RUN apt-get update 
+RUN apt-get install -y libgdiplus
+RUN apt-get install -y --no-install-recommends gss-ntlmssp
+
+WORKDIR /app
+
+#RUN apk add --no-cache tzdata
+
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+WORKDIR /src
+COPY ["V5WinService/V5WinService.csproj", "V5WinService/"]
+COPY ["V5RESTApi/V5RESTApi.csproj", "V5RESTApi/"]
+RUN dotnet restore "V5WinService/V5WinService.csproj"
+COPY . .
+WORKDIR "/src/V5WinService"
+RUN dotnet build "V5WinService.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "V5WinService.csproj" -c Release -o /app/publish
+#RUN dotnet publish "V5WinService.csproj" -c Release -o /app/publish --self-contained --runtime linux-64
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "V5WinService.dll"]
+
+
+#Steps:
+#docker build -t v5winservice .
+#docker create --name v5winservice v5winservice
+#docker ps -a
+#docker start -i v5winservice
+
